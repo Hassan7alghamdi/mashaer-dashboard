@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
+// 🔴 ضع هنا رابط جوجل شيت المعتاد الخاص بك (الرابط العادي من المتصفح)
+const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6HS9a7yIHab_R4jlQi8qllqWDVDdh5w7dwMvrri0YQ/edit?usp=sharing";
+
 export default function App() {
   const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,38 +13,49 @@ export default function App() {
   const [selectedStatus, setSelectedStatus] = useState('الكل'); 
   const [connFilter, setConnFilter] = useState('الكل'); 
   const [searchQuery, setSearchQuery] = useState('');
-  const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv";
 
-  // دالة جلب وتفسير البيانات برمجياً عبر الـ HTTP Request وتخطي الـ CORS
   const fetchSheetData = async () => {
     try {
-      if (!GOOGLE_SHEET_CSV_URL || GOOGLE_SHEET_CSV_URL.includes("https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv")) {
-        setErrorLog("يرجى تزويد السطر رقم 6 برابط الـ CSV الصحيح للشيت.");
+      if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.includes("https://docs.google.com/spreadsheets/d/1y6HS9a7yIHab_R4jlQi8qllqWDVDdh5w7dwMvrri0YQ/edit?usp=sharing")) {
+        setErrorLog("يرجى تزويد السطر رقم 4 برابط جوجل شيت الفعلي.");
         setLoading(false);
         return;
       }
 
-      // استخدام بروتوكول جلب مرن مع كسر كاش المتصفح لضمان أحدث داتا
-      const response = await fetch(`${GOOGLE_SHEET_CSV_URL}&nocache=${new Date().getTime()}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'text/csv; charset=utf-8' }
-      });
+      const sheetId = GOOGLE_SHEET_URL.match(/\/d\/([^/]+)/)?.[1];
+      if (!sheetId) {
+        throw new Error("رابط جوجل شيت غير صحيح، يرجى نسخ الرابط كاملاً من شريط المتصفح.");
+      }
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
+      // جلب البيانات بصيغة CSV مع كسر الكاش
+      const baseSheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('2 ذو الحجة')}&nocache=${new Date().getTime()}`;
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(baseSheetUrl)}`;
+
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("فشل السيرفر الوسيط في جلب البيانات من جوجل.");
+
       const csvText = await response.text();
-      
-      // مفسر CSV داخلي ذكي (Lightweight Parser) لتجنب مشاكل استدعاء المكتبات الخارجية
       const lines = csvText.split(/\r?\n/);
-      if (lines.length < 2) return;
+      
+      // 🛠️ التكتيك التكنكل الجديد: فحص هل الصف الأول مدمج ويحتوي على العنوان الكبير؟
+      // إذا نعم، نبدأ القراءة وتحديد الهيدر من السطر التشغيلي الثاني (Index 1)
+      let startRowIndex = 0;
+      if (lines[0] && (lines[0].includes("حالة التواصل") || !lines[0].includes("رقم المركز"))) {
+        startRowIndex = 1; // تخطي الصف الأول المدمج
+      }
 
-      const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+      if (lines.length <= startRowIndex + 1) {
+        setLoading(false);
+        return;
+      }
+
+      // تنظيف الهيدر الحقيقي من الاقتباسات الفراغية
+      const headers = lines[startRowIndex].split(',').map(h => h.replace(/^"|"$/g, '').trim());
       const jsonData = [];
 
-      for (let i = 1; i < lines.length; i++) {
+      for (let i = startRowIndex + 1; i < lines.length; i++) {
         if (!lines[i]) continue;
         
-        //  مع الفواصل
         const currentLine = [];
         let insideQuote = false;
         let entry = "";
@@ -58,10 +72,11 @@ export default function App() {
         }
         currentLine.push(entry.trim());
 
-        if (currentLine.length === headers.length) {
+        if (currentLine.length >= headers.length) {
           const rowObj = {};
           headers.forEach((header, index) => {
-            rowObj[header] = currentLine[index]?.replace(/^"|"$/g, '');
+            let val = currentLine[index] ? currentLine[index].replace(/^"|"$/g, '') : '';
+            rowObj[header] = val;
           });
           jsonData.push(rowObj);
         }
@@ -72,63 +87,66 @@ export default function App() {
         setErrorLog(null);
       }
     } catch (err) {
-      console.error("Fetch API Failure:", err);
-      setErrorLog(`فشل الاتصال السحابي: ${err.message}. تأكد من إعدادات النشر للعامة في جوجل شيت.`);
+      console.error("CORS Proxy Failure:", err);
+      setErrorLog(`⚠️ تنبيه غرفة العمليات: جاري محاولة جلب البيانات. تأكد من أن ملف الشيت مضبوط على خيار مشاركة: (أي شخص لديه الرابط يمكنه العرض View).`);
     } finally {
       setLoading(false);
     }
   };
 
-  // المزامنة والريفرش الآلي كل دقيقة
   useEffect(() => {
     fetchSheetData();
-    const interval = setInterval(() => {
-      console.log("Auto-fetching fresh data from Google Sheets API...");
-      fetchSheetData();
-    }, 60000); // 60 ثانية
-
+    const interval = setInterval(fetchSheetData, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // 🛠️ تفكيك الصفوف: جعل كل ملاحظة (منى أو عرفة) في صف (Row) مستقل تماماً للمشرفين
+  // تفكيك بنية الداتا وعزل ملاحظات منى وعرفة في صفوف مستقلة
   const splitIssuesRows = useMemo(() => {
     const rows = [];
 
     rawData.forEach((row, idx) => {
-      const centerId = row['رقم المركز']?.trim() || '';
-      const name = row['المراكز']?.trim() || 'غير مدرج';
-      const connection = row['حالة الاتصال']?.trim() || 'غير معروف';
+      const keys = Object.keys(row);
+      const kCenter = keys.find(k => k.includes('رقم') || k.includes('مركز'));
+      const kCompany = keys.find(k => k.includes('المراكز'));
+      const kConn = keys.find(k => k.includes('اتصال'));
+      const kMinaNotes = keys.find(k => k.includes('ملاحظات') && k.includes('منى'));
+      const kMinaUpdate = keys.find(k => k.includes('تحديث') && k.includes('منى'));
+      const kArafatNotes = keys.find(k => k.includes('ملاحظات') && k.includes('عرفة'));
+      const kArafatUpdate = keys.find(k => k.includes('تحديث') && k.includes('عرفة'));
 
-      if (!centerId || centerId === '' || centerId.includes('رقم')) return;
+      const centerId = kCenter ? row[kCenter]?.trim() : '';
+      const name = kCompany ? row[kCompany]?.trim() : 'غير مدرج';
+      const connection = kConn ? row[kConn]?.trim() : 'تم التأكيد';
 
-      const minaNotes = row['ملاحظات منى']?.trim() || '';
-      const minaUpdate = row['تحديث الملاحظات منى']?.trim() || '';
-      
-      const arafatNotes = row['ملاحظات عرفة']?.trim() || '';
-      const arafatUpdate = row['تحديث الملاحظات عرفة']?.trim() || '';
+      if (!centerId || centerId === '' || centerId.includes('رقم') || centerId.includes('حالة التواصل')) return;
 
-      const hasMina = minaNotes !== '' && !minaNotes.includes('لا يوجد ملاحظات');
-      const hasArafat = arafatNotes !== '' && !arafatNotes.includes('لا يوجد ملاحظات');
+      const minaNotes = kMinaNotes ? row[kMinaNotes]?.trim() : '';
+      const minaUpdate = kMinaUpdate ? row[kMinaUpdate]?.trim() : '';
+      const arafatNotes = kArafatNotes ? row[kArafatNotes]?.trim() : '';
+      const arafatUpdate = kArafatUpdate ? row[kArafatUpdate]?.trim() : '';
+
+      const hasMina = minaNotes !== '' && !minaNotes.includes('لا يوجد');
+      const hasArafat = arafatNotes !== '' && !arafatNotes.includes('لا يوجد');
 
       if (hasMina) {
         const isMinaResolved = minaUpdate.includes('اصلاح') || minaUpdate.includes('تم') || minaUpdate.includes('تغيير');
         rows.push({
-          key: `mina-${centerId}-${idx}`, id: centerId, name, connection, site: 'منى', notes: minaNotes,
-          update: minaUpdate || '⚠️ لا يوجد تحديث ميداني من المراقب', status: isMinaResolved ? 'تم الحل' : 'مفتوحة'
+          key: `m-${centerId}-${idx}`, id: centerId, name, connection, site: 'منى', notes: minaNotes,
+          update: minaUpdate || '⚠️ لا يوجد تحديث ميداني من المراقب حتى الآن', status: isMinaResolved ? 'تم الحل' : 'مفتوحة'
         });
       }
 
       if (hasArafat) {
         const isArafatResolved = arafatUpdate.includes('اصلاح') || arafatUpdate.includes('تم') || arafatUpdate.includes('تغيير');
         rows.push({
-          key: `arafat-${centerId}-${idx}`, id: centerId, name, connection, site: 'عرفة', notes: arafatNotes,
-          update: arafatUpdate || '⚠️ لا يوجد تحديث ميداني من المراقب', status: isArafatResolved ? 'تم الحل' : 'مفتوحة'
+          key: `a-${centerId}-${idx}`, id: centerId, name, connection, site: 'عرفة', notes: arafatNotes,
+          update: arafatUpdate || '⚠️ لا يوجد تحديث ميداني من المراقب حتى الآن', status: isArafatResolved ? 'تم الحل' : 'مفتوحة'
         });
       }
 
       if (!hasMina && !hasArafat && connection.includes('لا يستجيب')) {
         rows.push({
-          key: `conn-${centerId}-${idx}`, id: centerId, name, connection, site: 'منى / عرفة',
+          key: `c-${centerId}-${idx}`, id: centerId, name, connection, site: 'منى / عرفة',
           notes: '🔴 المركز لا يستجيب للاتصال - يتطلب متابعة قناة التواصل وتحديثها', update: 'لا يوجد تحديث تواصل بعد', status: 'مفتوحة'
         });
       }
@@ -158,10 +176,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-sans" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white font-sans" dir="rtl">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div>
-          <p className="mt-4 text-slate-400 font-medium">جاري إنشاء الاتصال السحابي المباشر بالـ API وسحب الداتا التشغيلية...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-400 mx-auto"></div>
+          <p className="mt-4 text-slate-400 text-sm font-medium">جاري تخطي العنوان المدمج وجلب بيانات "2 ذو الحجة" الحية...</p>
         </div>
       </div>
     );
@@ -170,14 +188,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 font-sans text-right antialiased" dir="rtl">
       
-      {/* هيدر غرفة العمليات التكنكل */}
+      {/* الهيدر */}
       <div className="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-950 p-6 rounded-2xl shadow-2xl mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-teal-500/20">
         <div>
           <div className="flex items-center gap-2">
-            <span className="bg-teal-400 w-2.5 h-2.5 rounded-full animate-pulse"></span>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">منظومة المراقبة الرقمية | بلاغات وتحديثات المشاعر المقدسة</h1>
+            <span className="bg-teal-400 w-2 h-2 rounded-full animate-pulse"></span>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">لوحة رصد ومتابعة بلاغات المشاعر المقدسة</h1>
           </div>
-          <p className="text-teal-400 text-xs mt-1">قراءة مفككة عبر الـ API: كل ملاحظة في سجل (Row) مستقل تماماً لتسهيل الفرز الميداني</p>
+          <p className="text-teal-400 text-xs mt-1">المراقبة الرقمية المباشرة: كل ملاحظة مفككة في صف مستقل من شيت 2 ذو الحجة</p>
         </div>
         <div className="bg-slate-900 text-slate-300 px-4 py-2 rounded-xl text-xs border border-teal-500/30">
           تحديث المزامنة: <span className="text-teal-400 font-bold">تلقائي (كل 60 ثانية)</span>
@@ -190,11 +208,11 @@ export default function App() {
         </div>
       )}
 
-      {/* صف بطاقات المؤشرات (KPIs) */}
+      {/* بطاقات الـ KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-md flex flex-col justify-between">
           <span className="text-xs text-slate-400 font-medium">إجمالي البلاغات المرصودة بالشيت</span>
-          <span className="text-2xl font-extrabold text-white mt-2">{stats.totalIssues} <span className="text-xs font-normal text-slate-500">ملاحظة منفردة</span></span>
+          <span className="text-2xl font-extrabold text-white mt-2">{stats.totalIssues} <span className="text-xs font-normal text-slate-500">بلاغ</span></span>
         </div>
 
         <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-md flex flex-col justify-between">
@@ -209,7 +227,7 @@ export default function App() {
               <span className="text-2xl font-extrabold text-teal-400">{stats.completionRate}%</span>
               <span className="text-xs text-slate-500 font-medium">تم حل {stats.resolvedIssues}</span>
             </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
               <div className="bg-teal-500 h-full" style={{ width: `${stats.completionRate}%` }}></div>
             </div>
           </div>
@@ -221,12 +239,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* شريط الفرز والتصفية */}
+      {/* أدوات الفرز */}
       <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-md mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">البحث المباشر</label>
-            <input type="text" placeholder="رقم المركز، اسم المتعهد، البلاغ..." className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">البحث السريع</label>
+            <input type="text" placeholder="رقم المركز، اسم المتعهد..." className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">حسب المشعر</label>
@@ -255,10 +273,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* الجدول المفكك التكنكل */}
+      {/* الجدول التشغيلي الرئيسي */}
       <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
         <div className="p-4 border-b border-slate-800 bg-slate-900/40">
-          <h2 className="font-bold text-sm text-slate-200">سجل البلاغات والتقارير الميدانية المفككة ({filteredIssues.length})</h2>
+          <h2 className="font-bold text-sm text-slate-200">سجل تقارير الميدان المفككة للمشرفين والمراقبين ({filteredIssues.length})</h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -269,9 +287,9 @@ export default function App() {
                 <th className="p-3.5" style={{ width: '18%' }}>الشركة / المتعهد</th>
                 <th className="p-3.5 text-center" style={{ width: '8%' }}>المشعر</th>
                 <th className="p-3.5 text-center" style={{ width: '10%' }}>حالة الاتصال</th>
-                <th className="p-3.5 text-slate-200" style={{ width: '26%' }}>الملاحظة المستلمة من المتعهد</th>
+                <th className="p-3.5 text-slate-200" style={{ width: '26%' }}>الملاحظة المستلمة</th>
                 <th className="p-3.5 text-slate-200" style={{ width: '22%' }}>تحديث وإصلاح المشرف الميداني</th>
-                <th className="p-3.5 text-center" style={{ width: '10%' }}>الوضعية</th>
+                <th className="p-3.5 text-center" style={{ width: '10%' }}>الحالة</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-xs text-slate-300">
@@ -286,12 +304,12 @@ export default function App() {
                     <td className="p-3.5 text-center">
                       <span className={`inline-block px-2 py-0.5 font-bold rounded text-[10px] ${item.connection.includes('لا يستجيب') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-teal-500/10 text-teal-400 border border-teal-500/20'}`}>{item.connection}</span>
                     </td>
-                    <td className="p-3.5 text-slate-100 font-medium whitespace-pre-line leading-relaxed">{item.notes}</td>
+                    <td className="p-3.5 text-slate-100 font-medium whitespace-pre-line">{item.notes}</td>
                     <td className="p-3.5 bg-slate-950/10">
                       {item.update.includes('⚠️') ? (
                         <span className="text-rose-400 font-bold text-[10px] animate-pulse">{item.update}</span>
                       ) : (
-                        <div className="bg-emerald-500/5 p-2 rounded border-r-2 border-teal-500 text-teal-300 font-medium whitespace-pre-line leading-relaxed">{item.update}</div>
+                        <div className="bg-emerald-500/5 p-2 rounded border-r-2 border-teal-500 text-teal-300 font-medium whitespace-pre-line">{item.update}</div>
                       )}
                     </td>
                     <td className="p-3.5 text-center">
@@ -302,7 +320,7 @@ export default function App() {
               ) : (
                 <tr>
                   <td colSpan="7" className="p-12 text-center text-slate-500 font-medium">
-                    لا توجد بلاغات تشغيلية نشطة حالياً.
+                    بانتظار تدفق البيانات من الشيت، يرجى تزويد السطر رقم 4 بالرابط والتأكد من فتح مشاركة الشيت للعامة.
                   </td>
                 </tr>
               )}
