@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 // 🔴 ضع هنا رابط جوجل شيت المعتاد الخاص بك (الرابط العادي من المتصفح)
-const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv";
+const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6HS9a7yIHab_R4jlQi8qllqWDVDdh5w7dwMvrri0YQ/edit?usp=sharing";
 
 export default function App() {
   const [rawData, setRawData] = useState([]);
@@ -195,7 +195,7 @@ export default function App() {
             <span className="bg-teal-400 w-2 h-2 rounded-full animate-pulse"></span>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">لوحة رصد ومتابعة بلاغات المشاعر المقدسة</h1>
           </div>
-          <p className="text-teal-400 text-xs mt-1">المراقبة الرقمية المباشرة: كل ملاحظة مفككة في صف مستقل من شيت 2 ذو الحجة</p>
+          <p className="text-teal-400 text-xs mt-1">المراقبة الرقمية المباشرة</p>
         </div>
         <div className="bg-slate-900 text-slate-300 px-4 py-2 rounded-xl text-xs border border-teal-500/30">
           تحديث المزامنة: <span className="text-teal-400 font-bold">تلقائي (كل 60 ثانية)</span>
