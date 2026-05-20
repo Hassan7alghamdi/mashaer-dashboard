@@ -44,7 +44,7 @@ export default function App() {
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i]) continue;
         
-        // التعامل مع الفواصل داخل النصوص
+        // التعامل مع الفواصل
         const currentLine = [];
         let insideQuote = false;
         let entry = "";
