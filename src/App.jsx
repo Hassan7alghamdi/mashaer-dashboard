@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 // 🔴 ضع هنا رابط جوجل شيت المعتاد الخاص بك (الرابط العادي من المتصفح)
-const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6HS9a7yIHab_R4jlQi8qllqWDVDdh5w7dwMvrri0YQ/edit?usp=sharing";
+const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv";
 
 export default function App() {
   const [rawData, setRawData] = useState([]);
@@ -16,7 +16,7 @@ export default function App() {
 
   const fetchSheetData = async () => {
     try {
-      if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.includes("https://docs.google.com/spreadsheets/d/1y6HS9a7yIHab_R4jlQi8qllqWDVDdh5w7dwMvrri0YQ/edit?usp=sharing")) {
+      if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.includes("https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv")) {
         setErrorLog("يرجى تزويد السطر رقم 4 برابط جوجل شيت الفعلي.");
         setLoading(false);
         return;
