@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
-// 🔴 ضع هنا رابط الـ CSV المباشر المتولد من (النشر على الويب)
-// تأكد أنه ينتهي بـ pub?output=csv
-const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv";
-
 export default function App() {
   const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +10,7 @@ export default function App() {
   const [selectedStatus, setSelectedStatus] = useState('الكل'); 
   const [connFilter, setConnFilter] = useState('الكل'); 
   const [searchQuery, setSearchQuery] = useState('');
+  const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqxYIY4s86E03NW7cnRPZn_pPmYuSKsWVHwwwK66wz4Bfh1FnpxKCcRMmhl8iBIzFYhL07SLWyJO72/pub?gid=421995879&single=true&output=csv";
 
   // دالة جلب وتفسير البيانات برمجياً عبر الـ HTTP Request وتخطي الـ CORS
   const fetchSheetData = async () => {
